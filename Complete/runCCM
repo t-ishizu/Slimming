@@ -1,0 +1,78 @@
+#script to run ccfx to get metrics
+#adds metrics to determine approximate refactoring size of source file
+
+#store directory information
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+#the path of tools used
+cloc=$DIR/CLOC/cloc-1.64/cloc #a tool used for removing white space
+ccfx=$DIR/CCFinderX/ccfx/ubuntu32/ccfx #path of CCFX
+
+if [ $# == 0 ]; then
+    printf "\nUsage: CCM [fileType] [file] (options)\n"
+    printf "Type: CCM -h for help\n\n"
+    exit 1
+fi
+
+while getopts ":h" opt; do
+   case $opt in
+      h)
+        echo ":: Help ::"
+        printf "\nUsage: CCM [fileType] [file] (options)\n\n"
+        echo "Acceptable args for [fileType]:"
+        echo " -- cobol"
+        echo " -- cpp"
+        echo " -- csharp"
+        echo " -- java"
+        echo " -- plaintext"
+        echo " -- visualbasic"
+        echo "Options:"
+        echo "-o <filename>	change outputfile"
+	echo "-c 		display calculations"
+	echo "-ver		display version number"
+	echo "-t		show runtime"
+	echo "-p		outputs S-Prime outline"
+	echo "-f		outputs shared function visualization"
+	echo "-sm		changes default to using smallest version of code clone instead of largest"
+	echo "-rnr <value>	filters CID's with RNR less than arg value"
+	echo "-v   		changes output to verbose"
+	echo "-mo		displays maximum output (-f-v-p-c-t-ver-o)"
+        exit 1
+	;;
+   esac
+done
+
+if [ $# == 1 ]; then
+    printf "\nUsage: CCM [fileType] [file] (options)\n"
+    printf "Type: CCM -h for help\n\n"
+    exit 1
+fi
+
+echo "Removing whitespace and comments"
+
+if [ "$1" == "plaintext" ]; then
+   fileNW="$2.nw"
+   grep -v -e '^[[:space:]]*$' $2 > $fileNW
+elif [ "$1" == "cobol" ]; then
+     echo "cobol file detected"
+     fileNW="$2.nw"
+     cat $2 > $fileNW
+else 
+     echo "Running CLOC on $2"
+     $cloc $2 -strip-comments nw
+     fileNW="$2.nw"
+fi
+
+echo "Running CCFinderX on $fileNW"
+$ccfx d $1 $fileNW -o $fileNW
+ccfxdFile="$fileNW.ccfxd"
+$ccfx m $ccfxdFile -c -o cloneM.ccm -w -o lineM.ccm
+$ccfx p $ccfxdFile -o prettyPrint.ccm
+
+#run CCM.jar
+echo "Runnning CCM on $fileNW"
+java -jar $DIR/CCMPT/CCM.jar prettyPrint.ccm *.ccfxprep cloneM.ccm lineM.ccm $fileNW "$@"
+
+# remove temp files:
+# .ccm (metric), .ccfxd, and .ccfxprep (token)
+rm *.ccfxd *.ccm *.ccfxprep *.nw

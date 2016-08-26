@@ -1,0 +1,17 @@
+#appends all files within the called directory together
+if [ $# == 0 ]; then
+   echo "Usage: quickAppend [filetype] (outputName)"
+   exit
+fi
+
+fileType=$1
+
+if [ $# == 2 ]; then
+   output=$2
+else
+   output="AppendedFiles.$fileType"
+fi
+
+echo "Concatinating all .$fileType files into $output"
+
+cat *.$fileType > $output
